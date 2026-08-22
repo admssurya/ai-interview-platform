@@ -10,8 +10,13 @@ module Api
 
       # GET /api/v1/assessments/:assessment_id/sessions
       def index
+        # Skip gemini_resumption_token (large TEXT) — never exposed in lists.
         assessment = Assessment.find(params[:assessment_id])
-        sessions = assessment.sessions.order(created_at: :desc)
+        sessions = assessment.sessions
+                             .select(:id, :assessment_id, :tenant_id, :candidate_id,
+                                     :candidate_name, :invite_token, :status, :end_reason,
+                                     :started_at, :ended_at, :duration_seconds, :created_at)
+                             .order(created_at: :desc)
 
         json_response(sessions: serialize(sessions, with: SessionSerializer))
       rescue ActiveRecord::RecordNotFound
@@ -86,13 +91,17 @@ module Api
       # GET /api/v1/sessions/:id/transcript
       def transcript
         from_turn = params[:from_turn].to_i
+        # Select only serialized columns.
         turns     = @session.transcript_turns
-                             .ordered
-                             .then { from_turn > 0 ? _1.where("turn_number >= ?", from_turn) : _1 }
+                            .select(:id, :turn_number, :speaker, :text,
+                                    :audio_start_ms, :audio_end_ms, :created_at)
+                            .ordered
+                            .then { from_turn > 0 ? _1.where("turn_number >= ?", from_turn) : _1 }
 
         json_response(
           turns: turns.map { |t| TranscriptTurnSerializer.new(t).as_json },
-          total: turns.count
+          # count(:all): plain .count would build COUNT(<selected columns>) and fail.
+          total: turns.count(:all)
         )
       end
 
