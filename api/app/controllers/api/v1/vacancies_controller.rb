@@ -8,13 +8,20 @@ module Api
       before_action :set_vacancy, only: %i[show update destroy]
 
       # GET /api/v1/vacancies
+      #
+      # Cached per (data generation, tenant, page, per_page) — same
+      # invalidation pattern as the assessments index.
       def index
-        vacancies = paginate(Vacancy.order(created_at: :desc))
+        payload = Rails.cache.fetch(index_cache_key, expires_in: 2.minutes) do
+          vacancies = paginate(Vacancy.order(created_at: :desc))
 
-        json_response(
-          vacancies: serialize(vacancies, with: VacancySerializer),
-          meta: pagination_meta(vacancies)
-        )
+          {
+            vacancies: serialize(vacancies, with: VacancySerializer),
+            meta: pagination_meta(vacancies)
+          }
+        end
+
+        json_response(payload)
       end
 
       # GET /api/v1/vacancies/:id
@@ -50,6 +57,12 @@ module Api
       end
 
       private
+
+      def index_cache_key
+        page     = query_params[:page] || 1
+        per_page = query_params[:per_page] || 20
+        "vacancies:v#{Vacancy.index_cache_version}:t#{current_tenant_id}:p#{page}:pp#{per_page}"
+      end
 
       def set_vacancy
         @vacancy = Vacancy.find(params[:id])

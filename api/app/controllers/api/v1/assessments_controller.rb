@@ -8,15 +8,24 @@ module Api
       before_action :set_assessment, only: %i[show update destroy]
 
       # GET /api/v1/assessments
+      #
+      # Cached per (data generation, tenant, page, per_page). The data
+      # generation is bumped by Assessment/Session writes, so a cached page
+      # can never serve stale rows; the tenant segment prevents cross-tenant
+      # leakage. Short TTL is a safety net, not the invalidation mechanism.
       def index
-        assessments = paginate(
-          Assessment.with_latest_session.order(created_at: :desc)
-        )
+        payload = Rails.cache.fetch(index_cache_key, expires_in: 2.minutes) do
+          assessments = paginate(
+            Assessment.with_latest_session.order(created_at: :desc)
+          )
 
-        json_response(
-          assessments: serialize(assessments, with: AssessmentSerializer),
-          meta: pagination_meta(assessments)
-        )
+          {
+            assessments: serialize(assessments, with: AssessmentSerializer),
+            meta: pagination_meta(assessments)
+          }
+        end
+
+        json_response(payload)
       end
 
       # GET /api/v1/assessments/:id
@@ -57,6 +66,12 @@ module Api
       end
 
       private
+
+      def index_cache_key
+        page     = query_params[:page] || 1
+        per_page = query_params[:per_page] || 20
+        "assessments:v#{Assessment.index_cache_version}:t#{current_tenant_id}:p#{page}:pp#{per_page}"
+      end
 
       def set_assessment
         @assessment = Assessment.includes(:assessment_skills).find(params[:id])
