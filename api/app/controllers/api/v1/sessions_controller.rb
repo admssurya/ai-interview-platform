@@ -13,7 +13,7 @@ module Api
         assessment = Assessment.find(params[:assessment_id])
         sessions = assessment.sessions.order(created_at: :desc)
 
-        json_response(sessions: sessions.map(&method(:session_json)))
+        json_response(sessions: serialize(sessions, with: SessionSerializer))
       rescue ActiveRecord::RecordNotFound
         json_error("Assessment not found", :not_found)
       end
@@ -31,7 +31,7 @@ module Api
         if session.save
           json_response(
             {
-              session:    session_json(session),
+              session:    serialize(session, with: SessionSerializer),
               invite_url: session.invite_url
             },
             :created
@@ -46,13 +46,7 @@ module Api
       # GET /api/v1/sessions/:id
       def show
         json_response(
-          session: session_json(@session).merge(
-            assessment: {
-              id:             @session.assessment.id,
-              name:           @session.assessment.name,
-              time_limit_min: @session.assessment.time_limit_min
-            }
-          )
+          session: serialize(@session, with: SessionSerializer, include_assessment: true)
         )
       end
 
@@ -71,7 +65,7 @@ module Api
         result = Sessions::EndHandler.new(@session).call(reason: reason)
 
         if result
-          json_response(session: session_json(@session.reload))
+          json_response(session: serialize(@session.reload, with: SessionSerializer))
         else
           json_error("Failed to end session", :unprocessable_entity)
         end
@@ -83,8 +77,8 @@ module Api
         discovered = @session.coverage_maps.discovered.order(:id)
 
         json_response(
-          skills:     maps.map(&method(:coverage_map_json)),
-          discovered: discovered.map(&method(:coverage_map_json)),
+          skills:     serialize(maps,       with: CoverageMapSerializer),
+          discovered: serialize(discovered, with: CoverageMapSerializer),
           updated_at: @session.coverage_maps.maximum(:updated_at)
         )
       end
@@ -97,17 +91,7 @@ module Api
                              .then { from_turn > 0 ? _1.where("turn_number >= ?", from_turn) : _1 }
 
         json_response(
-          turns: turns.map do |t|
-            {
-              id:             t.id,
-              turn_number:    t.turn_number,
-              speaker:        t.speaker,
-              text:           t.text,
-              audio_start_ms: t.audio_start_ms,
-              audio_end_ms:   t.audio_end_ms,
-              created_at:     t.created_at
-            }
-          end,
+          turns: turns.map { |t| TranscriptTurnSerializer.new(t).as_json },
           total: turns.count
         )
       end
@@ -159,37 +143,6 @@ module Api
         @session = Session.find(params[:id])
       rescue ActiveRecord::RecordNotFound
         json_error("Session not found", :not_found)
-      end
-
-      def session_json(session)
-        {
-          id:               session.id,
-          assessment_id:    session.assessment_id,
-          tenant_id:        session.tenant_id,
-          candidate_id:     session.candidate_id,
-          candidate_name:   session.candidate_name,
-          invite_token:     session.invite_token,
-          invite_url:       session.invite_url,
-          status:           session.status,
-          end_reason:       session.end_reason,
-          started_at:       session.started_at,
-          ended_at:         session.ended_at,
-          duration_seconds: session.duration_seconds,
-          created_at:       session.created_at
-        }
-      end
-
-      def coverage_map_json(map)
-        {
-          id:            map.id,
-          skill_id:      map.skill_id,
-          skill_label:   map.skill_label,
-          is_discovered: map.is_discovered,
-          state:         map.state,
-          probe_count:   map.probe_count,
-          last_signal:   map.last_signal,
-          updated_at:    map.updated_at
-        }
       end
     end
   end

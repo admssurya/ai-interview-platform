@@ -10,18 +10,18 @@ module Api
       # GET /api/v1/assessments
       def index
         assessments = paginate(
-          Assessment.includes(:sessions).order(created_at: :desc)
+          Assessment.with_latest_session.order(created_at: :desc)
         )
 
         json_response(
-          assessments: assessments.map(&method(:assessment_json)),
+          assessments: serialize(assessments, with: AssessmentSerializer),
           meta: pagination_meta(assessments)
         )
       end
 
       # GET /api/v1/assessments/:id
       def show
-        json_response(assessment: assessment_with_skills_json(@assessment))
+        json_response(assessment: serialize(@assessment, with: AssessmentSerializer, with_skills: true))
       end
 
       # POST /api/v1/assessments
@@ -31,7 +31,7 @@ module Api
 
         if assessment.save
           SystemPromptGeneratorWorker.perform_async(assessment.id)
-          json_response({ assessment:, system_prompt_generated: true }, :created)
+          json_response({ assessment: serialize(assessment, with: AssessmentSerializer), system_prompt_generated: true }, :created)
         else
           json_error(assessment.errors.full_messages.first, :unprocessable_entity)
         end
@@ -41,7 +41,10 @@ module Api
       def update
         if @assessment.update(assessment_params)
           SystemPromptGeneratorWorker.perform_async(@assessment.id)
-          json_response({ assessment: assessment_with_skills_json(@assessment), system_prompt_generated: true })
+          json_response({
+            assessment: serialize(@assessment, with: AssessmentSerializer, with_skills: true),
+            system_prompt_generated: true
+          })
         else
           json_error(@assessment.errors.full_messages.first, :unprocessable_entity)
         end
@@ -72,48 +75,6 @@ module Api
             l1_anchor l2_anchor l3_anchor l4_anchor l5_anchor
             expected_level display_order _destroy
           ]
-        )
-      end
-
-      def assessment_json(assessment)
-        latest = assessment.sessions.max_by(&:created_at)
-
-        {
-          id:             assessment.id,
-          name:           assessment.name,
-          time_limit_min: assessment.time_limit_min,
-          language:       assessment.language || 'en',
-          system_prompt:  assessment.system_prompt,
-          created_by:     assessment.created_by,
-          created_at:     assessment.created_at,
-          updated_at:     assessment.updated_at,
-          latest_session: latest && {
-            id:         latest.id,
-            status:     latest.status,
-            end_reason: latest.end_reason
-          }
-        }
-      end
-
-      def assessment_with_skills_json(assessment)
-        assessment_json(assessment).merge(
-          skills: assessment.assessment_skills.order(:display_order).map do |s|
-            {
-              id:            s.id,
-              skill_id:      s.skill_id,
-              skill_label:   s.skill_label,
-              is_custom:     s.is_custom,
-              scope_include: s.scope_include,
-              scope_exclude: s.scope_exclude,
-              l1_anchor:     s.l1_anchor,
-              l2_anchor:     s.l2_anchor,
-              l3_anchor:     s.l3_anchor,
-              l4_anchor:     s.l4_anchor,
-              l5_anchor:     s.l5_anchor,
-              expected_level: s.expected_level,
-              display_order: s.display_order
-            }
-          end
         )
       end
 
