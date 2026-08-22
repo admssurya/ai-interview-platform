@@ -339,8 +339,9 @@ RSpec.describe 'API Response Format Contracts', type: :request do
       get "/api/v1/sessions/#{session.invite_token}/candidate"
 
       expect_json_response
-      expect_keys(json_body, :session_id, :role_title, :time_limit_min, :session_status)
+      expect_keys(json_body, :session_id, :role_title, :time_limit_min, :session_status, :consent_given)
       expect_integers(json_body, :session_id, :time_limit_min)
+      expect(json_body['consent_given']).to be(true).or be(false)
     end
 
     it 'POST /sessions/:token/audio_complete returns ended + message' do

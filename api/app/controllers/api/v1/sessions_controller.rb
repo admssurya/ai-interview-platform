@@ -3,8 +3,8 @@
 module Api
   module V1
     class SessionsController < ApiController
-      authorize_auth_token! :assessor, except: %i[candidate_info audio_complete]
-      skip_before_action :require_tenant!, only: %i[candidate_info audio_complete]
+      authorize_auth_token! :assessor, except: %i[candidate_info give_consent audio_complete]
+      skip_before_action :require_tenant!, only: %i[candidate_info give_consent audio_complete]
 
       before_action :set_session, only: %i[show destroy end_session coverage transcript]
 
@@ -158,8 +158,21 @@ module Api
           session_id:      session.id,
           role_title:      assessment.name,
           time_limit_min:  assessment.time_limit_min,
-          session_status:  session.status
+          session_status:  session.status,
+          consent_given:   session.consent_given_at.present?
         )
+      end
+
+      # POST /sessions/:token/consent — no JWT, invite-token identity.
+      # Records the moment a candidate agreed to data processing (UU PDP
+      # lawful basis). Idempotent with first-write-wins so the timestamp can
+      # never be rolled back by a later request.
+      def give_consent
+        session = Session.unscoped.find_by(invite_token: params[:token])
+        return json_error("Invalid or expired invite token", :not_found) unless session
+
+        session.update(consent_given_at: Time.current) if session.consent_given_at.nil?
+        json_response(consent_recorded: true)
       end
 
       private
