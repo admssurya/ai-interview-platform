@@ -3,22 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import PaginationControls from "@/components/common/PaginationControls";
+import { usePagination } from "@/hooks/usePagination";
 import { vacanciesApi } from "@/services/vacancies";
 import { Plus, Briefcase, ChevronRight } from "lucide-react";
-import type { Vacancy } from "@/types";
+import type { Vacancy, PaginationMeta } from "@/types";
 
 export default function VacancyListPage() {
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const navigate = useNavigate();
+  const { page, setPage } = usePagination();
 
   useEffect(() => {
-    vacanciesApi.list()
-      .then((res) => setVacancies(res.data.vacancies))
+    setLoading(true);
+    vacanciesApi
+      .list(page)
+      .then((res) => {
+        setVacancies(res.data.vacancies);
+        setMeta(res.data.meta);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   return (
     <div className="space-y-4">
@@ -65,6 +74,8 @@ export default function VacancyListPage() {
           ))}
         </div>
       )}
+
+      <PaginationControls meta={meta} onPageChange={setPage} disabled={loading} />
     </div>
   );
 }
