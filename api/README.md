@@ -95,3 +95,49 @@ Runs on **port 5173** by default.
 | Sidekiq | `bundle exec sidekiq -r ./config/environment.rb -C config/sidekiq.yml` | — |
 | Rails API | `bundle exec rails server` | 3001 |
 | Frontend | `npm run dev` (in `ai-interview-web/`) | 5173 |
+
+---
+
+## Running Tests
+
+### Setup test database
+
+```bash
+RAILS_ENV=test bundle exec rails db:create db:migrate
+```
+
+### Run all tests
+
+```bash
+RAILS_ENV=test bundle exec rspec
+```
+
+### Run specific test file
+
+```bash
+RAILS_ENV=test bundle exec rspec spec/models/session_spec.rb
+```
+
+### Run specific test by line number
+
+```bash
+RAILS_ENV=test bundle exec rspec spec/models/session_spec.rb:25
+```
+
+### Run tests with documentation format
+
+```bash
+RAILS_ENV=test bundle exec rspec --format documentation
+```
+
+### Test coverage
+
+| Category | Specs | What's Tested |
+|---|---|---|
+| Models | 16 | Validations, associations, scopes, callbacks, TenantScoped concern |
+| Services | 8 | StateEngine, MapInjector, StartHandler, EndHandler, SystemPromptCompiler, PdfGenerator, FitGap::Engine, Portfolios::Generator |
+| Workers | 4 | CoverageAnalyzer, PortfolioGenerator, FitGapGenerator, SystemPromptGenerator |
+| Requests (API endpoints) | 9 | Assessments, Sessions, Portfolios, PortfolioSkills, Vacancies, SkillTaxonomies, Auth, Health/SpeedTest, RateLimiting |
+| Auth & Concerns | 2 | AuthorizeApiRequest, TenantScoped |
+
+**Total: 328 examples** — includes rate limiter tests (login 5/min per IP, candidate endpoints 30/min per IP), multi-tenancy isolation tests, and Gemini client mocking (no real API calls in tests).
