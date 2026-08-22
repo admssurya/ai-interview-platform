@@ -6,7 +6,7 @@ module Api
       authorize_auth_token! :assessor, except: %i[candidate_info audio_complete]
       skip_before_action :require_tenant!, only: %i[candidate_info audio_complete]
 
-      before_action :set_session, only: %i[show end_session coverage transcript]
+      before_action :set_session, only: %i[show destroy end_session coverage transcript]
 
       # GET /api/v1/assessments/:assessment_id/sessions
       def index
@@ -103,6 +103,22 @@ module Api
           # count(:all): plain .count would build COUNT(<selected columns>) and fail.
           total: turns.count(:all)
         )
+      end
+
+      # DELETE /api/v1/sessions/:id
+      # UU PDP right to erasure: removes the session and all personal-data
+      # cascades (transcript turns, coverage maps, portfolio, fit/gap reports).
+      # Defense-in-depth: only ended sessions are erasable — matches the
+      # retention task scope; live/pending interviews must be ended first.
+      def destroy
+        unless @session.ended?
+          return json_error("Only ended sessions can be deleted — end the session first", :unprocessable_entity)
+        end
+
+        @session.destroy!
+        json_response(message: "Session deleted")
+      rescue ActiveRecord::RecordNotFound
+        json_error("Session not found", :not_found)
       end
 
       # POST /sessions/:token/audio_complete  — no JWT, invite token in URL
