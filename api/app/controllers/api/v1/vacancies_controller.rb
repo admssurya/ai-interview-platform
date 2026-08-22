@@ -19,7 +19,7 @@ module Api
 
       # GET /api/v1/vacancies/:id
       def show
-        json_response(vacancy: serialize(@vacancy, with: VacancySerializer, with_skills: true, taxonomy_map: taxonomy_map_for(@vacancy)))
+        json_response(vacancy: serialize(@vacancy, with: VacancySerializer, with_skills: true))
       end
 
       # POST /api/v1/vacancies
@@ -28,7 +28,7 @@ module Api
         vacancy.created_by = current_user.id
 
         if vacancy.save
-          json_response({ vacancy: serialize(vacancy, with: VacancySerializer, with_skills: true, taxonomy_map: taxonomy_map_for(vacancy)) }, :created)
+          json_response({ vacancy: serialize(vacancy, with: VacancySerializer, with_skills: true) }, :created)
         else
           json_error(vacancy.errors.full_messages.first, :unprocessable_entity)
         end
@@ -37,7 +37,7 @@ module Api
       # PUT /api/v1/vacancies/:id
       def update
         if @vacancy.update(vacancy_params)
-          json_response(vacancy: serialize(@vacancy, with: VacancySerializer, with_skills: true, taxonomy_map: taxonomy_map_for(@vacancy)))
+          json_response(vacancy: serialize(@vacancy, with: VacancySerializer, with_skills: true))
         else
           json_error(@vacancy.errors.full_messages.first, :unprocessable_entity)
         end
@@ -66,12 +66,6 @@ module Api
             id skill_id skill_label expected_level _destroy
           ]
         )
-      end
-
-      # Preload taxonomy anchors in one query to avoid N+1.
-      def taxonomy_map_for(vacancy)
-        skill_ids = vacancy.vacancy_skills.filter_map(&:skill_id).uniq
-        SkillTaxonomy.where(skill_id: skill_ids).index_by(&:skill_id)
       end
 
       def pagination_meta(collection)

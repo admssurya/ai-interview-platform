@@ -37,9 +37,16 @@ class VacancySerializer
     @taxonomy_map
   end
 
+  def default_taxonomy_map
+    skill_ids = vacancy.vacancy_skills.filter_map(&:skill_id).uniq
+    SkillTaxonomy.where(skill_id: skill_ids).index_by(&:skill_id)
+  end
+
   def skills_json
+    # One taxonomy lookup total — never per skill.
+    map = taxonomy_map || default_taxonomy_map
     vacancy.vacancy_skills.map do |s|
-      taxonomy = taxonomy_map&.[](s.skill_id) || SkillTaxonomy.find_by(skill_id: s.skill_id)
+      taxonomy = map[s.skill_id]
 
       {
         id:             s.id,
