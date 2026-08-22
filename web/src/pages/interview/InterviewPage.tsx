@@ -320,13 +320,14 @@ export default function InterviewPage() {
       </div>
 
       {/* Bottom bar */}
-      <div className="border-t py-3 flex items-center justify-between gap-4 sticky bottom-0 bg-white">
+      <div className="border-t py-3 flex items-center justify-between gap-x-4 gap-y-2 flex-wrap sticky bottom-0 bg-white">
         <ConnectionStatus state={wsConnectionStatus} />
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
           <Button
             variant={micMuted ? "destructive" : "outline"}
             size="sm"
+            className="shrink-0"
             onClick={toggleMic}
           >
             {micMuted ? (
@@ -338,7 +339,7 @@ export default function InterviewPage() {
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="outline" size="sm">End Interview</Button>
+            <Button variant="outline" size="sm" className="shrink-0">End Interview</Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -354,7 +355,8 @@ export default function InterviewPage() {
           </AlertDialogContent>
         </AlertDialog>
         {import.meta.env.DEV && (
-          <Button variant="outline" size="sm" className="text-xs opacity-50"
+          <Button variant="outline" size="sm"
+            className="text-xs opacity-50 shrink-0 hidden sm:inline-flex"
             onClick={() => sendJson({ type: "debug_force_reconnect" })}>
             ⚡ Force reconnect
           </Button>
