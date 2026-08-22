@@ -6,15 +6,14 @@
 #
 # Only includes the fields we need for tenant resolution.
 class Organization < ApplicationRecord
+  include CacheVersion
+
   self.table_name = 'organizations'
 
-  ORG_CACHE_VERSION_KEY = 'organizations:cache_version'
   # Tenant identifiers come from client-controlled headers/referers. Only
   # cache well-formed identifiers to prevent Redis key flooding from
   # arbitrary probe traffic; anything else bypasses the cache.
   CACHEABLE_IDENTIFIER_FORMAT = /\A[a-z0-9._-]{1,100}\z/i
-
-  after_commit :bump_cache_version
 
   # Mirrors rakamin-api Organisation.identify exactly.
   # Accepts identifier, name, scheme, or host.
@@ -53,20 +52,6 @@ class Organization < ApplicationRecord
     "org:v#{cache_version}:#{identifier}"
   end
 
-  # Generation token for cache invalidation. Deleting the version key forces
-  # every process to generate a new one on next read, orphaning all old
-  # entries at once — no per-key bookkeeping, no cross-process races on the
-  # entries themselves.
-  def self.cache_version
-    Rails.cache.fetch(ORG_CACHE_VERSION_KEY, expires_in: 10.minutes) do
-      SecureRandom.uuid
-    end
-  end
-
-  def self.bump_cache_version
-    Rails.cache.delete(ORG_CACHE_VERSION_KEY)
-  end
-
   def self.default_organization
     where(id: 0).first
   end
@@ -74,11 +59,5 @@ class Organization < ApplicationRecord
   # Convenience: is this the system default org?
   def default?
     id.zero?
-  end
-
-  private
-
-  def bump_cache_version
-    Organization.bump_cache_version
   end
 end

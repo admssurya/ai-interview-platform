@@ -61,7 +61,7 @@ module Api
       def index_cache_key
         page     = query_params[:page] || 1
         per_page = query_params[:per_page] || 20
-        "vacancies:v#{Vacancy.index_cache_version}:t#{current_tenant_id}:p#{page}:pp#{per_page}"
+        "vacancies:v#{Vacancy.cache_version}:t#{current_tenant_id}:p#{page}:pp#{per_page}"
       end
 
       def set_vacancy

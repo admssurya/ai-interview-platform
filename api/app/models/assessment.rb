@@ -2,6 +2,9 @@
 
 class Assessment < ApplicationRecord
   include TenantScoped
+  # Index responses render latest_session, so Session writes must invalidate
+  # this model's cache too (see the after_commit in Session).
+  include CacheVersion
 
   has_many :assessment_skills, dependent: :destroy, inverse_of: :assessment
   has_many :sessions, dependent: :restrict_with_error
@@ -31,29 +34,6 @@ class Assessment < ApplicationRecord
   }
 
   SUPPORTED_LANGUAGES = { 'en' => 'English', 'id' => 'Bahasa Indonesia' }.freeze
-
-  # Generation token for index endpoint caching. Any assessment write — and
-  # any session write (latest_session is rendered in index) — bumps it, so
-  # cached pages can never go stale. See Organization for the same pattern.
-  INDEX_CACHE_VERSION_KEY = 'assessments:index_cache_version'
-
-  after_commit :bump_index_cache_version
-
-  def self.index_cache_version
-    Rails.cache.fetch(INDEX_CACHE_VERSION_KEY, expires_in: 10.minutes) do
-      SecureRandom.uuid
-    end
-  end
-
-  def self.bump_index_cache_version
-    Rails.cache.delete(INDEX_CACHE_VERSION_KEY)
-  end
-
-  private
-
-  def bump_index_cache_version
-    Assessment.bump_index_cache_version
-  end
 
   validates :name, presence: true
   validates :time_limit_min, presence: true,
