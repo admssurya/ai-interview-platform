@@ -54,12 +54,12 @@ export default function VacancyListPage() {
               className="cursor-pointer hover:border-primary/40 transition-colors"
               onClick={() => navigate(`/vacancies/${v.id}/edit`)}
             >
-              <CardContent className="py-3 px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium text-sm">{v.role_title}</p>
+              <CardContent className="py-3 px-4 flex items-center justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <p className="font-medium text-sm truncate">{v.role_title}</p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </CardContent>
             </Card>
           ))}
