@@ -32,6 +32,11 @@ export default function InterviewPage() {
   const [speaker, setSpeaker] = useState<InterviewSpeaker>(null);
   const [transcript, setTranscript] = useState<Pick<TranscriptTurn, "speaker" | "text">[]>([]);
   const [hardwareCheckDone, setHardwareCheckDone] = useState(false); // kept for green banner
+  // UU PDP consent gate — server-side state is the source of truth; this only
+  // mirrors it so the consent screen shows/hides immediately.
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentSubmitting, setConsentSubmitting] = useState(false);
   const [connectionLostLong, setConnectionLostLong] = useState(false);
   const [reconnectedPrompt, setReconnectedPrompt] = useState(false);
   const reconnectedPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,10 +51,22 @@ export default function InterviewPage() {
       .then((res) => {
         setCandidateInfo(res.data);
         setSessionId(res.data.session_id);
+        setConsentGiven(res.data.consent_given);
         if (res.data.session_status === "ended") setInterviewState("complete");
       })
       .catch(() => setInterviewState("complete"));
   }, [token]);
+
+  const handleGiveConsent = async () => {
+    if (!token || !consentChecked) return;
+    setConsentSubmitting(true);
+    try {
+      await sessionsApi.giveConsent(token);
+      setConsentGiven(true); // server has the timestamp; mirror locally
+    } finally {
+      setConsentSubmitting(false);
+    }
+  };
 
   const muteRef = useRef<(() => void) | null>(null);
   const unmuteRef = useRef<(() => void) | null>(null);
@@ -200,7 +217,38 @@ export default function InterviewPage() {
           )}
         </div>
 
-        {!hardwareCheckDone ? (
+        {!consentGiven ? (
+        /* ── UU PDP consent gate ──────────────────────────────────────── */
+        <div className="space-y-4">
+          <div className="border rounded-lg p-4 space-y-3 text-sm">
+            <p className="font-medium">Before we start</p>
+            <ul className="space-y-1.5 text-muted-foreground text-sm list-disc pl-4">
+              <li>Your interview is transcribed and analyzed by AI to assess your skills.</li>
+              <li>The transcript is shared with the hiring team and processed by Google's AI service.</li>
+              <li>You can request deletion of your data at any time.</li>
+            </ul>
+            <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
+              />
+              <span>
+                I agree to my interview being transcribed and AI-analyzed for assessment purposes.
+              </span>
+            </label>
+          </div>
+          <Button
+            className="w-full"
+            size="lg"
+            disabled={!consentChecked || consentSubmitting}
+            onClick={handleGiveConsent}
+          >
+            {consentSubmitting ? "Recording consent..." : "Continue"}
+          </Button>
+        </div>
+      ) : !hardwareCheckDone ? (
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-1.5 text-muted-foreground">
               <p>• This is a voice interview. Make sure you're in a quiet place.</p>
@@ -233,9 +281,11 @@ export default function InterviewPage() {
         <div className="text-4xl">✅</div>
         <h2 className="text-xl font-semibold">Interview Complete</h2>
         <p className="text-sm text-muted-foreground">
-          Thank you. The interview has been recorded.
+          Thank you. Your interview has been transcribed and will be
+          AI-assisted for assessment, then reviewed by the hiring team.
           <br />
-          The hiring team will review your results and follow up with you.
+          You may request deletion of your interview data at any time by
+          contacting the hiring team.
         </p>
       </div>
     );
