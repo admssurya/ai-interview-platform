@@ -11,11 +11,23 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { assessmentsApi } from "@/services/assessments";
+import { sessionsApi } from "@/services/sessions";
 import { LEVEL_LABELS } from "@/utils/constants";
-import { ArrowLeft, Copy, Check, Eye, Pencil, Clock, Plus, UserRound } from "lucide-react";
+import { ArrowLeft, Copy, Check, Eye, Pencil, Clock, Plus, UserRound, Trash2 } from "lucide-react";
 import type { Assessment, Session } from "@/types";
 
 function SessionRow({
@@ -24,12 +36,14 @@ function SessionRow({
   assessmentId,
   onCopy,
   copiedId,
+  onDeleted,
 }: {
   session: Session;
   index: number;
   assessmentId: string;
   onCopy: (id: number) => void;
   copiedId: number | null;
+  onDeleted: (id: number) => void;
 }) {
   const navigate = useNavigate();
   const isLive = session.status === "active";
@@ -114,6 +128,40 @@ function SessionRow({
               Results
             </Button>
           )}
+
+          {/* UU PDP right to erasure — only ended sessions can be purged;
+              live/pending interviews must be ended first. */}
+          {isEnded && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-destructive hover:text-destructive shrink-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this session?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently removes {displayName}'s interview data — transcript,
+                    results, and reports. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => onDeleted(session.id)}
+                  >
+                    Delete permanently
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
     </div>
@@ -179,6 +227,15 @@ export default function AssessmentInvitePage() {
     navigator.clipboard.writeText(session.invite_url);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDeleteSession = async (id: number) => {
+    try {
+      await sessionsApi.destroySession(id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      alert("Failed to delete session. Please try again.");
+    }
   };
 
   const copyNewSessionLink = () => {
@@ -313,6 +370,7 @@ export default function AssessmentInvitePage() {
                     if (s) copyLink(s, sid);
                   }}
                   copiedId={copiedId}
+                  onDeleted={handleDeleteSession}
                 />
               ))}
             </CardContent>

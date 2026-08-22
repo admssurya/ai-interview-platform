@@ -12,6 +12,11 @@ export const sessionsApi = {
       session: { reason },
     }),
 
+  // UU PDP right to erasure — permanently removes the session and all
+  // personal-data cascades (transcript, portfolio, fit/gap reports).
+  destroySession: (id: number) =>
+    api.delete<{ message: string }>(`/sessions/${id}`),
+
   getCoverage: (id: number) =>
     api.get<CoverageMap>(`/sessions/${id}/coverage`),
 
