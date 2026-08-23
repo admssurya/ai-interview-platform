@@ -13,6 +13,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import VoiceBars from "@/components/interview/VoiceBars";
+import ConsentGate from "@/components/interview/ConsentGate";
 import InterviewTimer from "@/components/interview/InterviewTimer";
 import ConnectionStatus from "@/components/interview/ConnectionStatus";
 import TranscriptBubble from "@/components/interview/TranscriptBubble";
@@ -35,8 +36,6 @@ export default function InterviewPage() {
   // UU PDP consent gate — server-side state is the source of truth; this only
   // mirrors it so the consent screen shows/hides immediately.
   const [consentGiven, setConsentGiven] = useState(false);
-  const [consentChecked, setConsentChecked] = useState(false);
-  const [consentSubmitting, setConsentSubmitting] = useState(false);
   const [connectionLostLong, setConnectionLostLong] = useState(false);
   const [reconnectedPrompt, setReconnectedPrompt] = useState(false);
   const reconnectedPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,14 +57,9 @@ export default function InterviewPage() {
   }, [token]);
 
   const handleGiveConsent = async () => {
-    if (!token || !consentChecked) return;
-    setConsentSubmitting(true);
-    try {
-      await sessionsApi.giveConsent(token);
-      setConsentGiven(true); // server has the timestamp; mirror locally
-    } finally {
-      setConsentSubmitting(false);
-    }
+    if (!token) return;
+    await sessionsApi.giveConsent(token);
+    setConsentGiven(true); // server has the timestamp; mirror locally
   };
 
   const muteRef = useRef<(() => void) | null>(null);
@@ -218,36 +212,8 @@ export default function InterviewPage() {
         </div>
 
         {!consentGiven ? (
-        /* ── UU PDP consent gate ──────────────────────────────────────── */
-        <div className="space-y-4">
-          <div className="border rounded-lg p-4 space-y-3 text-sm">
-            <p className="font-medium">Before we start</p>
-            <ul className="space-y-1.5 text-muted-foreground text-sm list-disc pl-4">
-              <li>Your interview is transcribed and analyzed by AI to assess your skills.</li>
-              <li>The transcript is shared with the hiring team and processed by Google's AI service.</li>
-              <li>You can request deletion of your data at any time.</li>
-            </ul>
-            <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
-              <input
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                checked={consentChecked}
-                onChange={(e) => setConsentChecked(e.target.checked)}
-              />
-              <span>
-                I agree to my interview being transcribed and AI-analyzed for assessment purposes.
-              </span>
-            </label>
-          </div>
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={!consentChecked || consentSubmitting}
-            onClick={handleGiveConsent}
-          >
-            {consentSubmitting ? "Recording consent..." : "Continue"}
-          </Button>
-        </div>
+          /* ── UU PDP consent gate ────────────────────────────────────── */
+          <ConsentGate onAgree={handleGiveConsent} />
       ) : !hardwareCheckDone ? (
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-1.5 text-muted-foreground">
