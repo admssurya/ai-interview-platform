@@ -9,7 +9,7 @@
 #   /ws/sessions/:id/coverage → CoverageWebSocketMiddleware (assessor live monitor)
 
 require_relative '../../app/channels/audio_web_socket_middleware'
-require_relative '../../app/channels/coverage_websocket_middleware'
+require_relative '../../app/channels/coverage_web_socket_middleware'
 
 Rails.application.config.middleware.insert_before TenantResolverMiddleware, AudioWebSocketMiddleware
 Rails.application.config.middleware.insert_before TenantResolverMiddleware, CoverageWebSocketMiddleware
