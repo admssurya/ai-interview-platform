@@ -39,6 +39,7 @@ jobs:
       DB_HOST: localhost
       DB_USERNAME: postgres
       DB_NAME: rakamin_test
+      ALLOWED_ORIGINS: http://localhost:3001
       REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
